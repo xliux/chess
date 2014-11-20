@@ -1,0 +1,4 @@
+#!/bin/bash
+# Mail you a file from the command line.  For example,
+# $ mailme  neat_file.txt
+mutt -s "Email attachment: $1" -a $1 $EMAIL < $1

@@ -1,0 +1,15 @@
+[user]
+    email = xinliu@gmail.com
+    name = Xin Liu
+[alias]
+    co = checkout
+    st = status
+    ci = commit -v
+
+[diff]
+    external = git_diff_wrapper
+
+[pager]
+    diff =
+[core]
+    editor = vim
