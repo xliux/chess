@@ -1,6 +1,6 @@
 #!/bin/bash -x
 type=release
-mkdir $type
+mkdir -p $type
 ln -nfs $type build 
 
 proj=$1
