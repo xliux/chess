@@ -1,5 +1,5 @@
 #include "chess/piece_bank.h"
 
 namespace chess {
-PieceBank PieceBank::theBank_;
+const PieceBank PieceBank::theBank_;
 }
