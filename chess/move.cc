@@ -64,21 +64,6 @@ void Move::setupEnPassant(Board* board) const {
   board->set(Piece::Type::EMPTY, enPassantPos);
 }
 
-void Move::setupCastling(Board* board) const {
-  DCHECK(board != nullptr);
-  if (to_.second < from_.second) {
-    Position rPos(from_.first, 0);
-    auto rType = board->getPieceTypeAtPosition(rPos);
-    board->set(Piece::Type::EMPTY, Position(rPos));
-    board->set(rType, Position(from_.first, 3));
-  } else {
-    Position rPos(from_.first, 7);
-    auto rType = board->getPieceTypeAtPosition(rPos);
-    board->set(Piece::Type::EMPTY, Position(rPos));
-    board->set(rType, Position(from_.first, 5));
-  }
-}
-
 void Move::undoEnPassant(Board* board) const {
   DCHECK(board != nullptr);
   if (fromType_ == Piece::Type::B_PAWN) {
@@ -88,19 +73,20 @@ void Move::undoEnPassant(Board* board) const {
   }
 }
 
+void Move::setupCastling(Board* board) const {
+  DCHECK(board != nullptr);
+  auto rPos = getCastlingRookPos();
+  auto rType = board->getPieceTypeAtPosition(rPos.first);
+  board->set(Piece::Type::EMPTY, rPos.first);
+  board->set(rType, rPos.second);
+}
+
 void Move::undoCastling(Board* board) const {
   DCHECK(board != nullptr);
-  if (to_.second < from_.second) {
-    Position rPos(from_.first, 3);
-    auto rType = board->getPieceTypeAtPosition(rPos);
-    board->set(Piece::Type::EMPTY, rPos);
-    board->set(rType, Position(from_.first, 0));
-  } else {
-    Position rPos(from_.first, 5);
-    auto rType = board->getPieceTypeAtPosition(rPos);
-    board->set(Piece::Type::EMPTY, rPos);
-    board->set(rType, Position(from_.first, 7));
-  }
+  auto rPos = getCastlingRookPos();
+  auto rType = board->getPieceTypeAtPosition(rPos.second);
+  board->set(Piece::Type::EMPTY, rPos.second);
+  board->set(rType, rPos.first);
 }
 
 string Move::print() const {
@@ -130,6 +116,21 @@ string Move::notation() const {
 
 float Move::heuristicScore(const Board& board) const {
   return PieceBank::get(newType(), to_)->heuristicScore(board);
+}
+
+pair<Position,Position> Move::getCastlingRookPos() const {
+  CHECK(special_ == KING_CASTLING);
+  int8_t preMoveCol, postMoveCol;
+  if (to().second == 2) {
+    preMoveCol = 0; 
+    postMoveCol = 3;
+  } else {
+    DCHECK(to().second == 6);
+    preMoveCol = 7; 
+    postMoveCol = 5;
+  }
+  return pair<Position, Position>(
+      {from().first, preMoveCol}, {from().first, postMoveCol});
 }
 
 }

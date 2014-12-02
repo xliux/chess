@@ -21,7 +21,7 @@ void BPawn::addMove(
 
 vector<Move> BPawn::getMoves(const Board& board) const {
   vector<Move> moves;
-
+  moves.reserve(8);
   Position newPos(row() - 1, col());
   if (canPlace(board, newPos) && board.isEmpty(newPos)) {
     addMove(board, newPos, &moves);

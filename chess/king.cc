@@ -16,13 +16,14 @@ using namespace std;
 
 vector<Move> King::getMoves(const Board& board) const {
   vector<Move> moves;
-  for (int dr = -1; dr <= 1; ++dr) {
-    for (int dc = -1; dc <= 1; ++dc) {
-      if (dr == 0 && dc == 0) continue;
-      Position newPos(row() + dr, col() + dc);
-      if (canPlace(board, newPos)) {
-        moves.emplace_back(board, Move::NORMAL_MOVE, position(), newPos);
-      }
+  moves.reserve(20);
+  static DeltaMove kDelta[] = {
+    {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
+
+  for (int i = 0; i < array_size(kDelta); ++i) {
+    Position newPos(row() + kDelta[i].dr, col() + kDelta[i].dc);
+    if (canPlace(board, newPos)) {
+      moves.emplace_back(board, Move::NORMAL_MOVE, position(), newPos);
     }
   }
   if (FLAGS_allow_castling) {

@@ -1,6 +1,9 @@
 #ifndef CHESS_MOVE_H
 #define CHESS_MOVE_H
+
 #include <string>
+#include <utility>
+
 #include "chess/piece.h"
 
 namespace chess {
@@ -50,6 +53,10 @@ class Move {
     std::string print() const;
     std::string notation() const;
     float heuristicScore(const Board& board) const;
+
+    // Get the rook positions (pre- and post-move) if it's a castling move;
+    // This asserts the move is a King-castling move. 
+    std::pair<Position,Position> getCastlingRookPos() const;
 
   private:
     void setupEnPassant(Board* board) const;

@@ -12,6 +12,7 @@ using namespace std;
 
 vector<Move> Queen::getMoves(const Board& board) const {
   vector<Move> moves;
+  moves.reserve(32);
   addMovesFromLine(board, DeltaMove{0, 1}, &moves);
   addMovesFromLine(board, DeltaMove{0, -1}, &moves);
   addMovesFromLine(board, DeltaMove{1, 0}, &moves);

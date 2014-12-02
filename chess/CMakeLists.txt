@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.6)
 PROJECT(chess)
 
-LINK_DIRECTORIES(${GLOG_DIR}/lib ${GFLAGS_DIR}/lib /usr/local/lib)
+LINK_DIRECTORIES(${GLOG_DIR}/lib ${GFLAGS_DIR}/lib)
 
 FILE(GLOB SRCS "*.cc")
 

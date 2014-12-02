@@ -83,8 +83,8 @@ bool OneRound::isChecked() const {
 bool OneRound::canMove(const Piece* piece, const Move& move, 
     bool isChecked, Board* auxBoard) const {
   auto to = move.to();
-  if (isChecked && auxBoard->isCastlingMove(piece->position(), to)) {
-    return false;
+  if (isChecked && move.special() == Move::KING_CASTLING) {
+    return false;  // castling under check is not allowed.
   }
 
   TryMove tryMove(move, auxBoard);
@@ -92,7 +92,6 @@ bool OneRound::canMove(const Piece* piece, const Move& move,
   auto kingPos = Piece::isBlack(type)
     ? auxBoard->blackKingPosition() : auxBoard->whiteKingPosition();
   Position lastToPos = auxBoard->to();
-
   if (Board::isValidPosition(lastToPos) && lastToPos != to) {
     auto lastMovedPiece = auxBoard->safePiece(lastToPos);
     if (lastMovedPiece != nullptr 
@@ -103,18 +102,13 @@ bool OneRound::canMove(const Piece* piece, const Move& move,
 
   // if last step from the opponent is castling, need to consider the rook
   if (auxBoard->lastMove().special() == Move::KING_CASTLING) {
-    Position rookPos = lastToPos;
-    if (lastToPos.second == 2) {
-      rookPos.second = 3;
-    } else {
-      CHECK(lastToPos.second == 6);
-      rookPos.second = 5;
-    }
+    // rook positions
+    auto rookPos = auxBoard->lastMove().getCastlingRookPos().second;
     if (rookPos != to) {
       const Piece* oppRook = auxBoard->safePiece(rookPos);
-      CHECK(Piece::Type::W_ROOK == oppRook->type() ||
+      DCHECK(Piece::Type::W_ROOK == oppRook->type() ||
           Piece::Type::B_ROOK == oppRook->type());
-      CHECK(!Piece::isSameColor(type, oppRook->type()));
+      DCHECK(!Piece::isSameColor(type, oppRook->type()));
       if (oppRook->canAttack(*auxBoard, to)) return false;
     }
   }

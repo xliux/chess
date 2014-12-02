@@ -26,6 +26,7 @@ enum {
 
 class Board {
   public:
+    static constexpr Position invalidPosition() { return {-1, -1}; }
     static bool isValidPosition(Position pos) {
       return pos.first >= 0 && pos.first < BOARD_SIZE
         && pos.second >= 0 && pos.second < BOARD_SIZE;

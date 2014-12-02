@@ -15,6 +15,7 @@ vector<Move> Knight::getMoves(const Board& board) const {
     {-1, -2}, {-1, 2}, {1, -2}, {1, 2}, {-2, -1}, {-2, 1}, {2, -1}, {2, 1}
   };
   vector<Move> moves;
+  moves.reserve(20);
   for (int i = 0; i < 8; ++i) {
     Position newPos = {row() + kMoves[i].dr, col() + kMoves[i].dc};
     if (canPlace(board, newPos)) {
