@@ -16,7 +16,7 @@ using namespace std;
 
 vector<Move> King::getMoves(const Board& board) const {
   vector<Move> moves;
-  moves.reserve(20);
+  moves.reserve(10);
   static DeltaMove kDelta[] = {
     {-1, -1}, {-1, 0}, {-1, 1}, {0, -1}, {0, 1}, {1, -1}, {1, 0}, {1, 1}};
 

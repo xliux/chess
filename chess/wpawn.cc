@@ -21,7 +21,7 @@ void WPawn::addMove(
 
 vector<Move> WPawn::getMoves(const Board& board) const {
   vector<Move> moves;
-  moves.reserve(8);
+  moves.reserve(4);
 
   Position newPos(row() + 1, col());
   if (canPlace(board, newPos) && board.isEmpty(newPos)) {

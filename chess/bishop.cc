@@ -11,7 +11,7 @@ using namespace std;
 
 vector<Move> Bishop::getMoves(const Board& board) const {
   vector<Move> moves;
-  moves.reserve(20);
+  moves.reserve(28);
   addMovesFromLine(board, DeltaMove{-1, -1}, &moves);
   addMovesFromLine(board, DeltaMove{-1, 1}, &moves);
   addMovesFromLine(board, DeltaMove{1, -1}, &moves);
