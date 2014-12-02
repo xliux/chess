@@ -4,13 +4,14 @@
 
 #include "chess/rook.h"
 #include "chess/board.h"
+#include "chess/move.h"
 #include "chess/util.h"
 
 namespace chess {
 using namespace std;
 
-vector<Position> Rook::getMoves(const Board& board) const {
-  vector<Position> moves;
+vector<Move> Rook::getMoves(const Board& board) const {
+  vector<Move> moves;
   addMovesFromLine(board, DeltaMove{0, 1}, &moves);
   addMovesFromLine(board, DeltaMove{0, -1}, &moves);
   addMovesFromLine(board, DeltaMove{1, 0}, &moves);

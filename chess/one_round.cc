@@ -4,6 +4,7 @@
 #include <gflags/gflags.h>
 
 #include "chess/one_round.h"
+#include "chess/move.h"
 #include "chess/piece.h"
 #include "chess/piece_bank.h"
 #include "chess/solution_cache.h"
@@ -15,62 +16,26 @@ using namespace std;
 
 SolutionCache OneRound::cache_;
 
-class TryMoveOnBoard {
+class TryMove {
   public:
-    TryMoveOnBoard(Board* board, Position from, Position to) :
-      board_(board), from_(from), to_(to), 
-      fromType_(board->getPieceTypeAtPosition(from)),
-      toType_(board->getPieceTypeAtPosition(to)) {
-        enPassant_ = board_->isEnpassantMove(from, to);
-        board_->set(Piece::Type::EMPTY, from_);
-        board_->set(fromType_, to_);
-        if (enPassant_) {
-          Position enPassantPos = to_;
-          if (fromType_ == Piece::Type::B_PAWN) {
-            ++enPassantPos.first;
-            CHECK(board->getPieceTypeAtPosition(enPassantPos) ==
-                Piece::Type::W_PAWN) << enPassantPos;
-          } else {
-            CHECK(fromType_ == Piece::Type::W_PAWN);
-            --enPassantPos.first;
-            CHECK(board->getPieceTypeAtPosition(enPassantPos) ==
-                Piece::Type::B_PAWN) << enPassantPos;
-          }
-          board_->set(Piece::Type::EMPTY, enPassantPos);
-        }
-      }
-
-    ~TryMoveOnBoard() {
-      board_->set(toType_, to_);
-      board_->set(fromType_, from_);
-      if (enPassant_) {
-        if (fromType_ == Piece::Type::B_PAWN) {
-          board_->set(Piece::Type::W_PAWN, {to_.first + 1, to_.second});
-        } else {
-          board_->set(Piece::Type::B_PAWN, {to_.first - 1, to_.second});
-        }
-      }
+    TryMove(const Move& move, Board* board) : move_(move), board_(board) {
+      move_.apply(board_);
     }
-
+    ~TryMove() {
+      move_.undo(board_);
+    }
   private:
+    Move move_;
     Board* board_;
-    Position from_, to_;
-    Piece::Type fromType_, toType_;
-    bool enPassant_;
 };
 
 static bool isKing(Piece::Type type) {
   return type == Piece::Type::B_KING || type == Piece::Type::W_KING;
 }
 
-static Piece::Type opponentType(Piece::Type type) {
-  //CHECK(type != Piece::Type::EMPTY);
-  return Piece::isBlack(type) ? Piece::Type::W_KING : Piece::Type::B_KING;
-}
-
 static DeltaMove deltaMove(Position from, Position to) {
   return DeltaMove{
-    static_cast<int8_t>(to.first - from.first),  
+   static_cast<int8_t>(to.first - from.first),  
    static_cast<int8_t>(to.second - from.second)
   };
 }
@@ -115,17 +80,42 @@ bool OneRound::isChecked() const {
   return checkChecked(*curBoard_, true);
 }
 
-bool OneRound::canMove(
-    const Piece* piece, Position to, bool isChecked, Board* auxBoard) const {
-  TryMoveOnBoard tryMove(auxBoard, piece->position(), to);
+bool OneRound::canMove(const Piece* piece, const Move& move, 
+    bool isChecked, Board* auxBoard) const {
+  auto to = move.to();
+  if (isChecked && auxBoard->isCastlingMove(piece->position(), to)) {
+    return false;
+  }
+
+  TryMove tryMove(move, auxBoard);
   auto type = piece->type();
   auto kingPos = Piece::isBlack(type)
     ? auxBoard->blackKingPosition() : auxBoard->whiteKingPosition();
-  if (Board::isValidPosition(auxBoard->to()) && auxBoard->to() != to) {
-    auto lastMovedPiece = auxBoard->safePiece(auxBoard->to());
+  Position lastToPos = auxBoard->to();
+
+  if (Board::isValidPosition(lastToPos) && lastToPos != to) {
+    auto lastMovedPiece = auxBoard->safePiece(lastToPos);
     if (lastMovedPiece != nullptr 
         && lastMovedPiece->canAttack(*auxBoard, kingPos)) {
       return false;
+    }
+  }
+
+  // if last step from the opponent is castling, need to consider the rook
+  if (auxBoard->lastMove().special() == Move::KING_CASTLING) {
+    Position rookPos = lastToPos;
+    if (lastToPos.second == 2) {
+      rookPos.second = 3;
+    } else {
+      CHECK(lastToPos.second == 6);
+      rookPos.second = 5;
+    }
+    if (rookPos != to) {
+      const Piece* oppRook = auxBoard->safePiece(rookPos);
+      CHECK(Piece::Type::W_ROOK == oppRook->type() ||
+          Piece::Type::B_ROOK == oppRook->type());
+      CHECK(!Piece::isSameColor(type, oppRook->type()));
+      if (oppRook->canAttack(*auxBoard, to)) return false;
     }
   }
   if (isChecked || isKing(type)) {
@@ -221,15 +211,16 @@ const PieceList& OneRound::sameSidePieces(Piece::Type type) const {
 
 // Returns the pieces that are on the opponent side of the 'type'.
 const PieceList& OneRound::opponentPieces(Piece::Type type) const {
-  return sameSidePieces(opponentType(type));
+  return sameSidePieces(Piece::opponentType(type));
 }
 
 float OneRound::calcMoveHeuristics(
-    Board* auxBoard, const Piece* piece, Position to) const {
-  VLOG(3) << "calc move heuristics from " << piece->print() << " to " << to;
-  TryMoveOnBoard tryMove(auxBoard, piece->position(), to);
+    Board* auxBoard, const Piece* piece, const Move& move) const {
+  CHECK(auxBoard != nullptr);
+  VLOG(3) << "calc move heuristics for move: " << move.print();
+  TryMove tryMove(move, auxBoard);
 
-  float heuristics = 0; 
+  float heuristics = move.heuristicScore(*auxBoard); 
   auto type = piece->type();
   auto& pieces = sameSidePieces(type);
   for (auto& p : pieces) {
@@ -240,20 +231,6 @@ float OneRound::calcMoveHeuristics(
       heuristics = max(heuristics, p->heuristicScore(*auxBoard));
     }
   }
-
-  if ((to.first == 0 && type == Piece::Type::B_PAWN) ||
-      (to.first == BOARD_SIZE - 1 && type == Piece::Type::W_PAWN)) {
-    auxBoard->set((Piece::isBlack(type)
-          ? Piece::Type::B_QUEEN : Piece::Type::W_QUEEN), to);
-    heuristics = std::max(heuristics, 
-        auxBoard->safePiece(to)->heuristicScore(*auxBoard));
-    // pawn promotion to knight
-    auxBoard->set((Piece::isBlack(type)
-          ? Piece::Type::B_KNIGHT : Piece::Type::W_KNIGHT), to);
-    heuristics = std::max(heuristics,
-        auxBoard->safePiece(to)->heuristicScore(*auxBoard));
-  }
-
   return heuristics;
 }
 
@@ -261,32 +238,28 @@ string OneRound::printMove(Position from, Position to) const {
   return Piece::printPiece(curBoard_->getPieceTypeAtPosition(from), to);
 }
 
-vector<pair<Position, Position>> OneRound::generateAndSortMaxMoves() {
+vector<Move> OneRound::generateAndSortMaxMoves() {
   vector<float> estimates;
-  vector<pair<Position, Position>> moves;
+  vector<Move> moves;
   auto auxBoard = curBoard_->clone(); // make a temporary variable
   for (auto& p : maxStepPieces_) {
     VLOG(2) << "check moves: " << p->print();
-    Position from = p->position();
-    for (auto& to : p->getMoves(*curBoard_)) {
-      if (!this->canMove(p, to, isMaxChecked_, auxBoard.get())) continue;
-      float est = PieceBank::moveTo(p, to)->heuristicScore(*auxBoard);
-      est = max(est, calcMoveHeuristics(auxBoard.get(), p, to));
-      moves.push_back(make_pair(from, to));
+    for (const auto& m : p->getMoves(*curBoard_)) {
+      if (!this->canMove(p, m, isMaxChecked_, auxBoard.get())) continue;
+      float est = calcMoveHeuristics(auxBoard.get(), p, m);
+      moves.push_back(m);
       estimates.push_back(est);
-      VLOG(2) << "estimate move: " << from << " => " 
-        << printMove(from, to) << " = " << est;
+      VLOG(2) << "estimate move: " << m.print() << " = " << est;
     }
   }
   vector<int> index(moves.size());
   for (int i = 0; i < moves.size(); index[i]=i, ++i) {}
   sort(index.begin(), index.end(),
       [&estimates](int x, int y) { return estimates[x] > estimates[y]; });
-  vector<pair<Position, Position>> maxMoves(moves.size());
+  vector<Move> maxMoves(moves.size());
   for (int i = 0; i < index.size(); ++i) {
     maxMoves[i] = moves[index[i]];
-    VLOG(2) << "adding move (" << i << "): " << maxMoves[i].first
-      << " => " << printMove(maxMoves[i].first, maxMoves[i].second)
+    VLOG(2) << "adding move (" << i << "): " << maxMoves[i].print()
       << "  h=" << estimates[index[i]];
   }
   VLOG(2) << "total " << maxMoves.size() << " moves";
@@ -294,26 +267,23 @@ vector<pair<Position, Position>> OneRound::generateAndSortMaxMoves() {
 }
 
 struct Brackets {
-  explicit Brackets(int loglevel) : loglevel_(loglevel) { 
-    VLOG(loglevel) << "{"; 
-  }
-  ~Brackets() { VLOG(loglevel_) << "}"; }
-  private:
-  int loglevel_;
+  explicit Brackets(int loglvl) : loglvl_(loglvl) { VLOG(loglvl) << "{"; }
+  ~Brackets() { VLOG(loglvl_) << "}"; }
+  int loglvl_;
 };
 
 //Actually this should be the min solution.
 SolutionForest::Index OneRound::storeSolution(uint64_t key) const {
   // store the current max state
-  CHECK_NOTNULL(maxStepState_.get());
+  DCHECK(maxStepState_.get() != nullptr);
   auto parent = cache_.addSolutionNode(key, *maxStepState_);
   VLOG(1) << "store parent solution node: " << hex << key << dec
     << "  id=" << parent
-    << " board=" << BoardStep::fromBoard(*maxStepState_).print();
+    << " board=" << maxStepState_->lastMove().notation();
   for (size_t i = 0; i < minStepStates_.size(); ++i) {
     auto idx = cache_.addSolutionNode(*minStepStates_[i]);
     VLOG(1) << "store solution min node: idx=" << idx << " i=" << i
-      << " board=" << BoardStep::fromBoard(*minStepStates_[i]).print();
+      << " board=" << minStepStates_[i]->lastMove().notation();
     cache_.addSolutionChild(parent, idx);
     if (i < minStepSolutionTrees_.size()) {
       auto h = minStepStates_[i]->hash();
@@ -328,59 +298,36 @@ SolutionForest::Index OneRound::storeSolution(uint64_t key) const {
   return parent;
 }
 
-int OneRound::expandMaxStep(int levelsLeft, 
-    const vector<pair<Position, Position>>& maxMoves) {
+bool OneRound::isCircularMove(const Move& move) const {
+  return (parent_ 
+      && parent_->maxStepState_->from() == move.to()
+      && parent_->maxStepState_->to() == move.from()
+      && move.toType() == Piece::Type::EMPTY
+      && parent_->curBoard_->isEmpty(parent_->maxStepState_->to())
+      && curBoard_->fromType() != Piece::Type::B_PAWN
+      && curBoard_->fromType() != Piece::Type::W_PAWN);
+}
+
+int OneRound::expandMaxStep(int levelsLeft, const vector<Move>& maxMoves) {
   CHECK_GT(levelsLeft, 0);
   // if (levelsLeft <= 0) return NONE;
   VLOG(1) << "expanding max step: level=" << level_ << " total " 
     << maxMoves.size() << " moves";
   int moveIdx = 0;
   for (auto& move : maxMoves) {
+    if (isCircularMove(move)) {
+      VLOG(1) << "discard due to circular move: " << move.print();
+      continue;
+    }
+
     Brackets bracket(1);
     VLOG(1) << "---- [" << level_ << ":" << moveIdx++ << "/" << maxMoves.size()
-      << "] max move@lvl " << level_ << "  "
-      << curBoard_->safePiece(move.first)->print()
-      << " => " << printMove(move.first, move.second);
-    bool promotion = false;
-    maxStepState_ = curBoard_->makeMove(move.first, move.second, &promotion);
-    if (promotion) {  // first try replace it with Queeen
-      maxStepState_->set((blackFirst_ 
-            ? Piece::Type::B_QUEEN : Piece::Type::W_QUEEN), 
-          move.second);
-      maxMovePiece_ = maxStepState_->safePiece(move.second);
+      << "] max move@lvl " << level_ << "  " << move.print();
 
-      ++cache_.gNumMaxStatesExpanded_;
-      int score = NONE;
-      uint64_t sig = maxStepState_->hash();
-      cleanUpForMinStep();
-      if (!cache_.getScoreFromMaxCache(sig, levelsLeft, &score)) {
-        score = expandMinStep(levelsLeft);
-        cache_.updateMaxCache(sig, levelsLeft, score);
-      } else if (score == CHECKMATE) {
-        // still need to expand the node to get the solutions
-        score = expandMinStep(levelsLeft);
-      }
-      VLOG(2) << "++++promotion: try queen first... score=" << score;
-      // min step expansion
-      if (score == CHECKMATE) return CHECKMATE; 
-
-      // try replace with a Knight
-      VLOG(2) << "++++promotion: try knight second... ";
-      maxStepState_->set((blackFirst_ 
-            ? Piece::Type::B_KNIGHT : Piece::Type::W_KNIGHT),
-          move.second);
-      maxMovePiece_= maxStepState_->safePiece(move.second);
-    } else {
-      // Discard if the move forms an immediate loop without other state change.
-      if (parent_ && parent_->maxStepState_->from() == move.second &&
-          parent_->curBoard_->isEmpty(parent_->maxStepState_->to()) &&
-          parent_->maxStepState_->to() == move.first) {
-        VLOG(1) << "discard due to circular move";
-        continue;
-      }
-      maxMovePiece_ = maxStepState_->safePiece(move.second);
-    }
+    maxStepState_ = curBoard_->makeMove(move);
+    maxMovePiece_ = maxStepState_->safePiece(move.to());
     ++cache_.gNumMaxStatesExpanded_;
+
     uint64_t sig = maxStepState_->hash();
     int score = NONE;
     cleanUpForMinStep();
@@ -432,24 +379,10 @@ int OneRound::handleMinStepBoard(int levelsLeft, unique_ptr<Board> nextState) {
   return score;
 }
 
-int OneRound::makeOneMinMove(int levelsLeft, Position from, Position to) {
-  bool promotion = false;
-  auto next = maxStepState_->makeMove(from, to, &promotion);
+int OneRound::makeOneMinMove(int levelsLeft, const Move& move) {
+  auto next = maxStepState_->makeMove(move);
   Brackets bracket(1);
-  VLOG(1) << "=== [" << level_ << "] minstep move: " 
-    << maxStepState_->safePiece(from)->print() << " => "
-    << next->printLastMove();
-  if (promotion) {
-    VLOG(1) << "====== minstep promotion to Queen";
-    next->set(blackFirst_ ? Piece::Type::W_QUEEN : Piece::Type::B_QUEEN, to);
-    int score = handleMinStepBoard(levelsLeft, std::move(next));
-    if (score < CHECKMATE) return score;
-
-    // then try knight 
-    next = minStepStates_.back()->clone();
-    next->set(blackFirst_ ? Piece::Type::W_KNIGHT : Piece::Type::B_KNIGHT, to);
-    VLOG(1) << "====== minstep promotion to Knight";
-  }
+  VLOG(1) << "=== [" << level_ << "] minstep move: " << move.print();
   return handleMinStepBoard(levelsLeft, std::move(next));
 }
 
@@ -463,11 +396,10 @@ int OneRound::expandMinStep(int levelsLeft) {
     if (maxStepState_->getPieceTypeAtPosition(p->position()) != p->type()) {
       continue; 
     }
-    Position from = p->position();
-    for (auto& to : p->getMoves(*maxStepState_)) {
-      if (!this->canMove(p, to, isMinChecked_, auxBoard.get())) continue;
+    for (const auto& m : p->getMoves(*maxStepState_)) {
+      if (!this->canMove(p, m, isMinChecked_, auxBoard.get())) continue;
       hasNextMove = true;
-      int result = makeOneMinMove(levelsLeft, from, to);
+      int result = makeOneMinMove(levelsLeft, m);
       if (result < CHECKMATE) return result;
     }
   }
@@ -491,7 +423,7 @@ static string printSolution(const SolutionForest& solutions,
     SolutionForest::Index root, const string& lead) {
   string output;
   auto& node = solutions.node(root);
-  output.append(node.data_.print());
+  output.append(node.data_.notation());
   output.append("  ");
 
   bool first = true;
@@ -508,13 +440,12 @@ string OneRound::printPath() const {
   string output;
   string lead;
   for (int i = 0; i < 2 * level_ + 1; ++i) lead.append("      ");
-  output.append(maxStepState_->safePiece(maxStepState_->to())->print());
-  output.append("   ");
+  output.append(maxStepState_->lastMove().notation());
+  output.append("  ");
   for (int i = 0; i < minStepStates_.size(); ++i) {
     if (i > 0) output.append(lead);
-    output.append(
-        minStepStates_[i]->safePiece(minStepStates_[i]->to())->print());
-    output.append("   ");
+    output.append(minStepStates_[i]->lastMove().notation());
+    output.append("  ");
     if (i < minStepSolutionTrees_.size()) {
       output.append(printSolution(
             cache_.solutions(), minStepSolutionTrees_[i], lead + "      "));

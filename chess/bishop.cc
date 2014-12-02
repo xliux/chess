@@ -1,15 +1,16 @@
 #include <stdlib.h>
 #include <utility>
 
-#include "bishop.h"
-#include "board.h"
-#include "util.h"
+#include "chess/bishop.h"
+#include "chess/board.h"
+#include "chess/move.h"
+#include "chess/util.h"
 
 namespace chess {
 using namespace std;
 
-vector<Position> Bishop::getMoves(const Board& board) const {
-  vector<Position> moves;
+vector<Move> Bishop::getMoves(const Board& board) const {
+  vector<Move> moves;
   addMovesFromLine(board, DeltaMove{-1, -1}, &moves);
   addMovesFromLine(board, DeltaMove{-1, 1}, &moves);
   addMovesFromLine(board, DeltaMove{1, -1}, &moves);

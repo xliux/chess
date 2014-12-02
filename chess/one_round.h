@@ -7,6 +7,7 @@
 #include <google/dense_hash_map>
 
 #include "chess/board.h"
+#include "chess/move.h"
 #include "chess/piece.h"
 #include "chess/solution_cache.h"
 
@@ -40,20 +41,19 @@ class OneRound {
 
   protected:
     void init();
-    std::vector<std::pair<Position, Position>> generateAndSortMaxMoves();
-    int makeOneMinMove(int levelsLeft, Position from, Position to);
+    std::vector<Move> generateAndSortMaxMoves();
+    int makeOneMinMove(int levelsLeft, const Move& move);
     int handleMinStepBoard(int levelsLeft, std::unique_ptr<Board> nextState);
 
     // Calculate the heuristic score of the move without actual 
     // generating the new board.
     float calcMoveHeuristics(
-        Board* auxBoard, const Piece* piece, Position newPosition) const;
+        Board* auxBoard, const Piece* piece, const Move& move) const;
 
-    bool canMove(const Piece* piece, Position to, 
+    bool canMove(const Piece* piece, const Move& move,
         bool isChecked, Board* auxBoard) const;
 
-    int expandMaxStep(int maxLevel,
-        const std::vector<std::pair<Position, Position>>& maxMoves);
+    int expandMaxStep(int maxLevel, const std::vector<Move>& maxMoves);
     int expandMinStep(int maxLevel);
 
     SolutionForest::Index storeSolution(uint64_t key) const;
@@ -61,6 +61,7 @@ class OneRound {
   private:
     bool isChecked() const;  // being checked by the opponent
     bool isChecking() const;  // is checking the opponent
+
     // General function to check if max/min side is a checked state
     bool checkChecked(const Board& board, bool maxSide) const; 
     void cleanUpForMinStep() {
@@ -72,6 +73,9 @@ class OneRound {
       maxStepPieces_.clear();
       minStepPieces_.clear();
     }
+
+    bool isCircularMove(const Move& move) const;
+
     std::string printMove(Position from, Position to) const;
     std::string backwardPrintPath() const;
 

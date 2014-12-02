@@ -6,6 +6,7 @@
 #include "chess/board.h"
 #include "chess/piece.h"
 #include "chess/king.h"
+#include "chess/move.h"
 #include "chess/one_round.h"
 #include "chess/solution_cache.h"
 
@@ -22,8 +23,9 @@ int main(int argc, char** argv) {
   google::ParseCommandLineFlags(&argc, &argv, true);
 
   LOG(INFO) << "size of king: " << sizeof(King) << " board:" << sizeof(Board)
-    << " node" << sizeof(Board::Node) << std::endl
-    << " solutionmap: " << sizeof(SolutionCache::SolutionMap::value_type);
+    << " node " << sizeof(Board::Node) << std::endl
+    << " solutionmap: " << sizeof(SolutionCache::SolutionMap::value_type)
+    << " move: " << sizeof(Move);
 
   bool blackFirst = FLAGS_first == "black";
   Board board(FLAGS_board);

@@ -79,7 +79,7 @@ class PieceBank {
     }
   }
 
-  static const PieceBank theBank_;
+  static PieceBank theBank_;
 
   BPawn bpawns_[BOARD_SIZE][BOARD_SIZE];
   WPawn wpawns_[BOARD_SIZE][BOARD_SIZE];

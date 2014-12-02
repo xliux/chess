@@ -3,15 +3,17 @@
 #include <memory>
 #include <glog/logging.h>
 
-#include "piece.h"
-#include "bishop.h"
-#include "board.h"
-#include "bpawn.h"
-#include "king.h"
-#include "knight.h"
-#include "queen.h"
-#include "rook.h"
-#include "wpawn.h"
+#include "chess/piece.h"
+
+#include "chess/bishop.h"
+#include "chess/board.h"
+#include "chess/bpawn.h"
+#include "chess/king.h"
+#include "chess/knight.h"
+#include "chess/move.h"
+#include "chess/queen.h"
+#include "chess/rook.h"
+#include "chess/wpawn.h"
 
 namespace chess {
 using namespace std;
@@ -67,7 +69,8 @@ vector<unique_ptr<Board>> Piece::getNextStates(const Board& board) const {
 
 bool Piece::hasNextStates(const Board& board) const {
   auto moves = getMoves(board);
-  for (auto newPos : moves) {
+  for (const auto& m: moves) {
+    Position newPos = m.to();
     CHECK(Board::isValidPosition(newPos));
     bool promotion = false;
     auto next = board.makeMove(position(), newPos, &promotion);
@@ -82,7 +85,8 @@ int Piece::getNextStates(const Board& board,
   CHECK_NOTNULL(nextStates);
   int origSize = nextStates->size();
   auto moves = getMoves(board);
-  for (auto newPos : moves) {
+  for (const auto& m: moves) {
+    Position newPos = m.to();
     CHECK(Board::isValidPosition(newPos));
     bool promotion = false;
     unique_ptr<Board> next = board.makeMove(position(), newPos, &promotion);
@@ -121,16 +125,16 @@ bool Piece::checkCanAttackLine(
 }
 
 void Piece::addMovesFromLine(
-    const Board& board, DeltaMove step, vector<Position> *movePositions) const {
-  assert(movePositions != nullptr);
-  Position pos = {row() + step.dr, col() + step.dc};
-  while (Board::isValidPosition(pos)) {
-    if (!isSameColor(type(), board.getPieceTypeAtPosition(pos))) {
-      movePositions->emplace_back(pos);
+    const Board& board, DeltaMove step, vector<Move> *moves) const {
+  DCHECK(moves != nullptr);
+  Position newPos = {row() + step.dr, col() + step.dc};
+  while (Board::isValidPosition(newPos)) {
+    if (!isSameColor(type(), board.getPieceTypeAtPosition(newPos))) {
+      moves->emplace_back(board, Move::NORMAL_MOVE, position(), newPos);
     }
-    if (!board.isEmpty(pos)) break;
-    pos.first += step.dr;
-    pos.second += step.dc;
+    if (!board.isEmpty(newPos)) break;
+    newPos.first += step.dr;
+    newPos.second += step.dc;
   }
 }
 

@@ -1,4 +1,5 @@
 #include <memory>
+#include "chess/move.h"
 #include "chess/one_round.h"
 #include "gtest/gtest.h"
 #include "glog/logging.h"
@@ -14,7 +15,8 @@ class TestableOneRound : public OneRound {
       }
 
     bool canMove(const Piece* piece, Position pos) {
-      return OneRound::canMove(piece, pos, false, auxBoard_.get());
+      Move move(*auxBoard_, Move::NORMAL_MOVE, piece->position(), pos); 
+      return OneRound::canMove(piece, move, false, auxBoard_.get());
     }
   private:
     unique_ptr<Board> auxBoard_;
@@ -43,6 +45,7 @@ class OneRoundTest : public ::testing::Test {
     unique_ptr<Board> board_;
     unique_ptr<TestableOneRound> oneRound_;
 };
+
 TEST_F(OneRoundTest, canMove) {
   // can move king
   auto bKing = board_->blackKing();

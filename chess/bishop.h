@@ -1,8 +1,10 @@
 #ifndef BISHOP_H
 #define BISHOP_H
-#include "piece.h"
+
+#include "chess/piece.h"
 
 namespace chess {
+
 class Bishop : public Piece {
   public:
     Bishop(bool isBlack=true, int8_t row=-1, int8_t col=-1) :
@@ -12,7 +14,7 @@ class Bishop : public Piece {
     bool canAttack(const Board& board, Position pos) const;
 
   protected:
-    std::vector<Position> getMoves(const Board& board) const;
+    std::vector<Move> getMoves(const Board& board) const;
 };
 
 }  // namespce chess

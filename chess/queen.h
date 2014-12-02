@@ -12,7 +12,7 @@ class Queen : public Piece {
     bool canAttack(const Board& board, Position pos) const;
 
   protected:
-    std::vector<Position> getMoves(const Board& board) const;
+    std::vector<Move> getMoves(const Board& board) const;
 };
 
 }  // namespce chess

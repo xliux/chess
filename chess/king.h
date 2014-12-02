@@ -12,7 +12,11 @@ class King : public Piece {
     bool canAttack(const Board& board, Position pos) const;
 
   protected:
-    std::vector<Position> getMoves(const Board& board) const;
+    Position origPos() const {
+      return type_ == Type::B_KING ? Position(7, 4) : Position(0, 4);
+    }
+    bool canCastle(const Board& board, bool smaller) const;
+    std::vector<Move> getMoves(const Board& board) const;
 };
 }
 

@@ -2,21 +2,23 @@
 #include <utility>
 #include <vector>
 
-#include "knight.h"
-#include "board.h"
-#include "util.h"
+#include "chess/knight.h"
+
+#include "chess/board.h"
+#include "chess/move.h"
+#include "chess/util.h"
 
 namespace chess {
 using namespace std;
-vector<Position> Knight::getMoves(const Board& board) const {
+vector<Move> Knight::getMoves(const Board& board) const {
   static const DeltaMove kMoves[8] = {
     {-1, -2}, {-1, 2}, {1, -2}, {1, 2}, {-2, -1}, {-2, 1}, {2, -1}, {2, 1}
   };
-  vector<Position> moves;
+  vector<Move> moves;
   for (int i = 0; i < 8; ++i) {
     Position newPos = {row() + kMoves[i].dr, col() + kMoves[i].dc};
     if (canPlace(board, newPos)) {
-      moves.emplace_back(newPos);
+      moves.emplace_back(board, Move::NORMAL_MOVE, position(), newPos);
     }
   }
   return moves;

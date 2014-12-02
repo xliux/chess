@@ -9,7 +9,8 @@
 #include "folly/Checksum.h"
 #include "folly/Hash.h"
 
-#include "piece.h"
+#include "chess/move.h"
+#include "chess/piece.h"
 
 namespace chess {
 enum {
@@ -42,7 +43,7 @@ class Board {
       setKingPositionIfNeeded(type, pos);
     }
 
-    void remove(Piece::Type type, int8_t row, int8_t col) {
+    void remove(int8_t row, int8_t col) {
       setInternal(Piece::Type::EMPTY, row, col);
     }
 
@@ -69,12 +70,15 @@ class Board {
     }
 
     bool isEnPassantMove(Position fromPos, Position toPos) const;
+    bool isCastlingMove(Position fromPos, Position toPos) const;
 
     // Is it now a check for the black/white.
     bool isChecked(bool black) const;
+
     std::unique_ptr<Board> clone() const;
     std::unique_ptr<Board> makeMove(
         Position pos, Position newPos, bool* pawnPromotion) const;
+    std::unique_ptr<Board> makeMove(const Move& move) const;
 
     // for search on the BFS tree
     struct Node;
@@ -87,12 +91,12 @@ class Board {
     int setScore(int score) { return (score_ = score); }
 
     // the last move piece type
-    Piece::Type fromType() const { return fromType_; }
-    // from position for the last move
-    Position from() const { return from_; }
+    const Move& lastMove() const { return lastMove_; }
+    Piece::Type fromType() const { return lastMove().fromType(); }
+    Position from() const { return lastMove().from(); }
     // to position for the last move
-    Position to() const { return to_; }
-    Piece::Type toType() const { return getPieceTypeAtPosition(to()); }
+    Position to() const { return lastMove().to(); }
+    Piece::Type toType() const { return lastMove().toType(); }
     bool isEnpassantMove(Position from, Position to) const;
 
     // expand current node by evaluating the score for the current board state,
@@ -117,6 +121,11 @@ class Board {
           {folly::crc32c(start, halfSize), folly::crc32c(mid, halfSize)});
     }
 
+    int compare(const Board& rhs) const {
+      return memcmp(positions_[0], rhs.positions_[0], 
+          sizeof(*positions_[0]) * BOARD_SIZE * BOARD_SIZE);
+    }
+
   protected:
     void setKingPositionIfNeeded(Piece::Type type, Position pos) {
       switch (type) {
@@ -139,8 +148,7 @@ class Board {
     void clear();
 
     int8_t score_;
-    Piece::Type fromType_;
-    Position from_, to_;
+    Move lastMove_;
 };
 
 struct Board::Node {

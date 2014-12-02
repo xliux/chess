@@ -6,27 +6,14 @@
 #include <glog/logging.h>
 
 #include "chess/board.h"
+#include "chess/move.h"
 #include "chess/piece.h"
 #include "chess/piece_bank.h"
 #include "chess/static_forest.h"
 
 namespace chess {
 
-struct BoardStep {
-  Position from_, to_;
-  Piece::Type fromType_, toType_;
-
-  static BoardStep fromBoard(const Board& board) {
-    return BoardStep{
-      board.from(), board.to(), board.fromType(), board.toType()
-    };
-  }
-  std::string print() const {
-    return PieceBank::get(fromType_, to_)->print() + "|"; 
-  }
-};
-
-typedef StaticForest<BoardStep> SolutionForest;
+typedef StaticForest<Move> SolutionForest;
 
 class SolutionCache {
   public:
@@ -59,11 +46,11 @@ class SolutionCache {
       return it->second;
     }
     Index addSolutionNode(uint64_t key, const Board& board) {
-      Index idx = solutions_.add(BoardStep::fromBoard(board));
+      Index idx = solutions_.add(board.lastMove());
       return solutionMap_.insert(std::make_pair(key, idx)).first->second;
     }
     Index addSolutionNode(const Board& board) {
-      return solutions_.add(BoardStep::fromBoard(board));
+      return solutions_.add(board.lastMove());
     }
 
     void addSolutionChild(Index parent, Index child) {

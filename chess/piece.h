@@ -6,8 +6,11 @@
 #include <memory>
 #include <vector>
 
+#include <glog/logging.h>
+
 namespace chess {
 class Board;
+class Move;
 
 typedef std::pair<int8_t, int8_t> Position;
 struct DeltaMove {
@@ -60,15 +63,29 @@ class Piece {
     static bool isBlack(Piece::Type type) {
       return static_cast<int8_t>(type) > 8;
     }
-
     static bool isWhite(Piece::Type type) {
       int8_t value = static_cast<int8_t>(type);
       return value > 0 && value < 8;
     }
-
     static bool isSameColor(Type type1, Type type2) {
       if (type1 == Type::EMPTY || type2 == Type::EMPTY) return false;
       return isBlack(type1) == isBlack(type2);
+    }
+    static Type opponentType(Type type) {
+      DCHECK(type != Type::EMPTY);
+      return Piece::isBlack(type) ? Type::W_KING : Type::B_KING;
+    }
+    static Type getSameQueenType(Type type) {
+      return isBlack(type) ? Type::B_QUEEN : Type::W_QUEEN;
+    }
+    static Type getSameKingType(Type type) {
+      return isBlack(type) ? Type::B_KING : Type::W_KING;
+    }
+    static Type getSameRookType(Type type) {
+      return isBlack(type) ? Type::B_ROOK : Type::W_ROOK;
+    }
+    static Type getSameKnightType(Type type) {
+      return isBlack(type) ? Type::B_KNIGHT: Type::W_KNIGHT;
     }
 
     // Returns all possible new states after the piece take one possible move.
@@ -82,10 +99,6 @@ class Piece {
     // Returns false if there is no move the piece can make.
     bool hasNextStates(const Board& board) const;
 
-    // Check if the piece can attack the position, assuming the position is
-    // taken by an opponent piece.
-    virtual bool canAttack(const Board& board, Position pos) const = 0;
-
     // estimate the heuristics of this piece to the king of the other side.
     float heuristicScore(const Board& board) const;
 
@@ -97,9 +110,13 @@ class Piece {
     static std::string printPiece(Type type, Position pos);
     std::string print() const { return printPiece(type(), position()); }
 
-    // Returns all moves the piece can potentially take. This does not check
+    // Check if the piece can attack the position, assuming the position is
+    // taken by an opponent piece.
+    virtual bool canAttack(const Board& board, Position pos) const = 0;
+
+    // Returns all moves the piece can possibly take. This does not check
     // if the king would be under attack after the move.
-    virtual std::vector<Position> getMoves(const Board& board) const = 0;
+    virtual std::vector<Move> getMoves(const Board& board) const = 0;
 
   protected:
     friend class Board;
@@ -114,7 +131,7 @@ class Piece {
     bool canPlace(const Board& board, Position newPos) const;
 
     void addMovesFromLine(const Board& board,
-        DeltaMove step, std::vector<Position>* newPositions) const;
+        DeltaMove step, std::vector<Move>* newPositions) const;
 
     float distanceFactor(Position other) const;
 

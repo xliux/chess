@@ -1,3 +1,4 @@
+#include <cmath>
 #include <fstream>
 #include <memory>
 #include <unordered_map>
@@ -6,6 +7,7 @@
 #include <glog/logging.h>
 
 #include "chess/board.h"
+#include "chess/move.h"
 #include "chess/piece.h"
 #include "chess/piece_bank.h"
 
@@ -21,8 +23,7 @@ static const unordered_map<char, Piece::Type> kNotationToPieceType = {
 };
 
 Board::Board(bool init_it) :
-  blackKing_(-1, -1), whiteKing_(-1, -1), score_(NONE),
-  fromType_(Piece::Type::EMPTY), from_(-1, -1), to_(-1, -1) {
+  blackKing_(-1, -1), whiteKing_(-1, -1), score_(NONE) {
     clear();
     if (init_it) {
       init();
@@ -30,8 +31,7 @@ Board::Board(bool init_it) :
   }
 
 Board::Board(const string& loadFromFile) :
-  blackKing_(-1, -1), whiteKing_(-1, -1), score_(NONE), 
-  fromType_(Piece::Type::EMPTY), from_(-1, -1), to_(-1, -1) {
+  blackKing_(-1, -1), whiteKing_(-1, -1), score_(NONE) {
     clear();
     ifstream input(loadFromFile);
 
@@ -134,34 +134,39 @@ bool Board::isEnpassantMove(Position fromPos, Position toPos) const {
   return isEmpty(toPos);
 }
 
+bool Board::isCastlingMove(Position fromPos, Position toPos) const {
+  auto fromType = getPieceTypeAtPosition(fromPos);
+  if (fromType != Piece::Type::W_KING || fromType != Piece::Type::B_KING) {
+    return false;
+  }
+  return abs<int8_t>(toPos.second - fromPos.second) > 1;
+}
+
+unique_ptr<Board> Board::makeMove(const Move& move) const {
+  auto cloned = this->clone();
+  move.apply(cloned.get());
+  cloned->lastMove_ = move;
+  return std::move(cloned);
+}
+
 unique_ptr<Board> Board::makeMove(Position pos, Position newPos,
     bool* pawnPromotion) const {
   CHECK(isValidPosition(newPos));
+  auto type = getPieceTypeAtPosition(pos);
   auto newBoard = this->clone();
-  Piece::Type type = getPieceTypeAtPosition(pos);
-  newBoard->add(type, newPos.first, newPos.second);
-  newBoard->set(Piece::Type::EMPTY, pos);
-
-  if (isEnpassantMove(pos, newPos)) {
-    // remove the captured pawn from board
-    Position enPassantPos = newPos;
-    if (type == Piece::Type::B_PAWN) {
-      ++enPassantPos.first;
-      CHECK(getPieceTypeAtPosition(enPassantPos) == Piece::Type::W_PAWN);
-      newBoard->set(Piece::Type::EMPTY, enPassantPos);
-    } else {
-      --enPassantPos.first;
-      CHECK(getPieceTypeAtPosition(enPassantPos) == Piece::Type::B_PAWN);
-      newBoard->set(Piece::Type::EMPTY, enPassantPos);
-    }
+  Move::SpecialType special = Move::NORMAL_MOVE;
+  if ((type == Piece::Type::B_PAWN && newPos.first == 0)
+    || (type == Piece::Type::W_PAWN && newPos.first == BOARD_SIZE - 1)) {
+    special = Move::QUEEN_PROMOTION;
+    *pawnPromotion = true;
+  } else if (isEnpassantMove(pos, newPos)) {
+    special = Move::PAWN_EN_PASSANT;
+  } else if (isCastlingMove(pos, newPos)) {
+    special = Move::KING_CASTLING;
   }
-  
-  newBoard->fromType_ = type;
-  newBoard->from_ = pos;
-  newBoard->to_ = newPos;
-  CHECK_NOTNULL(pawnPromotion);
-  *pawnPromotion = (type == Piece::Type::B_PAWN && newPos.first == 0)
-    || (type == Piece::Type::W_PAWN && newPos.first == BOARD_SIZE - 1);
+  Move move(*this, special, pos, newPos);
+  move.apply(newBoard.get());
+  newBoard->lastMove_ = move;
   return newBoard;
 }
 
@@ -257,8 +262,8 @@ int Board::evaluate(bool blackMoveFirst, int maxDepth,
 }
 
 string Board::printLastMove() const {
-  if (fromType_ == Piece::Type::EMPTY) return "---";
-  return Piece::printPiece(fromType_, to_);
+  if (!Board::isValidPosition(lastMove().from())) return "---";
+  return lastMove().notation();
 }
 
 string Board::Node::printMove() const {

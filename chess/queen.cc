@@ -2,15 +2,16 @@
 #include <utility>
 #include <vector>
 
-#include "board.h"
-#include "queen.h"
-#include "util.h"
+#include "chess/board.h"
+#include "chess/move.h"
+#include "chess/queen.h"
+#include "chess/util.h"
 
 namespace chess {
 using namespace std;
 
-vector<Position> Queen::getMoves(const Board& board) const {
-  vector<Position> moves;
+vector<Move> Queen::getMoves(const Board& board) const {
+  vector<Move> moves;
   addMovesFromLine(board, DeltaMove{0, 1}, &moves);
   addMovesFromLine(board, DeltaMove{0, -1}, &moves);
   addMovesFromLine(board, DeltaMove{1, 0}, &moves);
