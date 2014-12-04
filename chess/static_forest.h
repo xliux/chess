@@ -3,7 +3,9 @@
 
 #include <climits>
 #include <memory>
+#include <type_traits>
 #include <vector>
+
 #include <glog/logging.h>
 
 namespace chess {
@@ -13,20 +15,29 @@ template<typename DataType> class StaticForest {
     typedef uint32_t Index;
     enum : uint32_t { NULL_INDEX = std::numeric_limits<Index>::max() };
     struct Node {
-      template<typename T> Node(T&& data) : data_(data) {}
+      // explicit Node(const DataType& data) : data_(data) {}
+      
+      template<typename T, typename std::enable_if<
+          std::is_constructible<DataType, T>::value, bool>::type=0>
+      explicit Node(T&& data) : data_(std::forward<T>(data)) {}
+      
       DataType data_;
       std::vector<Index> children_;
     };
 
     template<typename T> Index add(T&& data) {
-      container.emplace_back(data);
+      container.emplace_back(std::forward<T>(data));
       return container.size() - 1;
     }
 
     template<typename T> Index add(T&& data, Index parent) {
+      container.emplace_back(std::forward<T>(data));
       container.emplace_back(data);
       Index idx = container.size() - 1;
-      if (parent != NULL_INDEX) container[parent].children_.push_back(idx);
+      if (parent != NULL_INDEX) {
+        CHECK_LT(parent, idx);
+        container[parent].children_.push_back(idx);
+      }
       return idx;
     }
 
@@ -35,20 +46,14 @@ template<typename DataType> class StaticForest {
     }
 
     const Node& node(Index idx) const { 
-      CHECK_LT(idx, container.size());
+      DCHECK_LT(idx, container.size());
       return container[idx]; 
     }
 
-    template<typename Callback>
-    void dfs(Index rootIdx, int depth, Callback cb) const {
-      auto curNode = node(rootIdx);
-      cb(curNode.data_, depth);
-      for (auto& child : curNode.children_) {
-        dfs(child, depth + 1, cb);
-      }
-    }
     size_t size() const { return container.size(); }
     void clear() { container.clear(); }
+    size_t memsize() const { return container.capacity() * sizeof(Node); }
+
   private:
     std::vector<Node> container;
 };  

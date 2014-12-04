@@ -57,6 +57,7 @@ class SolutionCache {
       return solutions_.addChild(parent, child);
     }
 
+    size_t memsize() const;
     std::string stats() const;
 
     void clear() {

@@ -22,9 +22,10 @@ int main(int argc, char** argv) {
   google::InitGoogleLogging(argv[0]);
   google::ParseCommandLineFlags(&argc, &argv, true);
 
-  LOG(INFO) << "size of king: " << sizeof(King) << " board:" << sizeof(Board)
-    << " node " << sizeof(Board::Node) << std::endl
-    << " solutionmap: " << sizeof(SolutionCache::SolutionMap::value_type)
+  LOG(INFO) << "[sizes] king: " << sizeof(King) << " board:" << sizeof(Board)
+    << " node:" << sizeof(Board::Node) << std::endl
+    << " solutionmap:" << sizeof(SolutionCache::SolutionMap::value_type)
+    << " scoremap:" << sizeof(SolutionCache::ScoreMap::value_type)
     << " move: " << sizeof(Move);
 
   bool blackFirst = FLAGS_first == "black";

@@ -53,7 +53,20 @@ bool SolutionCache::updateCache(
   return false;
 }
 
+size_t SolutionCache::memsize() const {
+  return solutions_.memsize()
+    + sizeof(ScoreMap::value_type)
+    * (minSignatures_.bucket_count() + maxSignatures_.bucket_count())
+    + sizeof(SolutionMap::value_type) * solutionMap_.bucket_count();
+}
+
 string SolutionCache::stats() const {
+   size_t minScoreMapMem = sizeof(ScoreMap::value_type)
+     * minSignatures_.bucket_count();
+   size_t maxScoreMapMem = sizeof(ScoreMap::value_type)
+     * maxSignatures_.bucket_count();
+   size_t solutionMapMem = 
+     sizeof(SolutionMap::value_type) * solutionMap_.bucket_count();
   return string("Total max states visited: ") 
     + std::to_string(gNumMaxStatesExpanded_) + "\n"
     + "Total min states visited: "
@@ -64,7 +77,12 @@ string SolutionCache::stats() const {
     + std::to_string(minSignatures_.size()) + "\n"
     + "Solution forest nodes: " + to_string(solutions_.size()) + "\n"
     + "solution map size: " + std::to_string(solutionMap_.size())
-    + " hits:" + to_string(solutionHits_);
+    + " hits:" + to_string(solutionHits_) + "\n"
+    + " totalmemsize=" + to_string(memsize()/1024) + "K\n"
+    + " minscoremapmem=" + to_string(minScoreMapMem/1024) + "K\n"
+    + " maxscoremapmem=" + to_string(maxScoreMapMem/1024) + "K\n"
+    + " solutionlistmem=" + to_string(solutions_.memsize()/1024) + "K\n"
+    + " solutionmapmem=" + to_string(solutionMapMem/1024) + "K\n";
 }
 
 }

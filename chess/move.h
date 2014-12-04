@@ -22,12 +22,9 @@ class Move {
     Move() : special_(NORMAL_MOVE), from_({-1, -1}), to_({-1, -1}),
         fromType_(Piece::Type::EMPTY), toType_(Piece::Type::EMPTY) {}
 
-    Move(SpecialType special, Position from, Position to,
-        Piece::Type fromType, Piece::Type toType) :
-      special_(special), from_(from), to_(to),
-      fromType_(fromType), toType_(toType) {};
-
     Move(const Board& board, SpecialType special, Position from, Position to);
+
+    Move(const Move& rhs) { memcpy(this, &rhs, sizeof(Move)); }
 
     // only changes the board piece positions, 
     // not updating other fields (lastMove etc) in the board.

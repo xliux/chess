@@ -12,7 +12,7 @@ ADD_EXECUTABLE(checkmate checkmate.cc)
 TARGET_LINK_LIBRARIES(checkmate chess glog gflags)
 
 ADD_EXECUTABLE(dfs dfs.cc)
-TARGET_LINK_LIBRARIES(dfs chess glog gflags jemalloc profiler folly)
+TARGET_LINK_LIBRARIES(dfs chess glog gflags tcmalloc profiler folly)
 SET_TARGET_PROPERTIES(dfs PROPERTIES LINK_FLAGS "-Wall -Wextra -Wl,--no-as-needed")
 
 ADD_SUBDIRECTORY(tests)
